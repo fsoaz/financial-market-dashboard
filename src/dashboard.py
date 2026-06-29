@@ -6,18 +6,21 @@ interactive dashboard application.
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.api import DataFetchError, fetch_stock_data, fetch_crypto_data
-from src.config import Config
+# `streamlit run src/dashboard.py` puts src/ on sys.path, not the repo root, so the
+# absolute `src.*` imports below fail. Add the repo root explicitly.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.indicators import (
     add_financial_indicators,
     calculate_summary_statistics,
-    calculate_correlation_matrix,
 )
 from src.utils import (
     clean_data,
@@ -27,6 +30,7 @@ from src.utils import (
     format_percentage,
     filter_by_date_range,
     get_date_range_options,
+    calculate_correlation_matrix,
 )
 
 logger = logging.getLogger(__name__)
@@ -258,7 +262,10 @@ def create_normalized_price_chart(data: dict[str, pd.DataFrame]) -> go.Figure:
             continue
 
         normalized = normalize_prices(df)
-        fig.add_trace(go.Scatter(x=df["date"], y=normalized, name=symbol, mode="lines"))
+        # normalize_prices drops NaN rows; align x to the surviving index.
+        fig.add_trace(
+            go.Scatter(x=df.loc[normalized.index, "date"], y=normalized, name=symbol, mode="lines")
+        )
 
     fig.update_layout(
         title="Normalized Prices (Base 100)",
@@ -676,3 +683,7 @@ def render_dashboard() -> None:
         render_financial_indicators(data)
     elif page == "Asset Comparison":
         render_asset_comparison(data)
+
+
+if __name__ == "__main__":
+    render_dashboard()

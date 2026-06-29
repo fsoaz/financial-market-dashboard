@@ -6,7 +6,6 @@ file I/O, and other common operations.
 """
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -79,7 +78,9 @@ def convert_dates(df: pd.DataFrame, date_column: str = "date") -> pd.DataFrame:
         return df
 
     df = df.copy()
-    df[date_column] = pd.to_datetime(df[date_column])
+    # utc=True: yfinance CSVs span DST changes (mixed -05:00/-04:00 offsets),
+    # which pd.to_datetime otherwise rejects with "Mixed timezones detected".
+    df[date_column] = pd.to_datetime(df[date_column], utc=True)
     return df
 
 
@@ -176,60 +177,6 @@ def load_all_data(processed: bool = False) -> dict[str, pd.DataFrame]:
     return data
 
 
-def is_cache_valid(filepath: Path, expiry_hours: int) -> bool:
-    """
-    Check if cached file is still valid.
-
-    Args:
-        filepath: Path to cached file.
-        expiry_hours: Cache expiry time in hours.
-
-    Returns:
-        True if cache is valid, False otherwise.
-    """
-    if not filepath.exists():
-        return False
-
-    file_time = datetime.fromtimestamp(filepath.stat().st_mtime)
-    age = datetime.now() - file_time
-
-    return age.total_seconds() < expiry_hours * 3600
-
-
-def get_cached_or_fetch(
-    symbol: str,
-    fetch_func,
-    expiry_hours: Optional[int] = None,
-    **kwargs,
-) -> pd.DataFrame:
-    """
-    Get data from cache or fetch fresh if expired.
-
-    Args:
-        symbol: Asset symbol.
-        fetch_func: Function to call if cache is invalid.
-        expiry_hours: Cache expiry time (default: Config.CACHE_EXPIRY_HOURS).
-        **kwargs: Arguments to pass to fetch_func.
-
-    Returns:
-        DataFrame with asset data.
-    """
-    expiry = expiry_hours or Config.CACHE_EXPIRY_HOURS
-    filepath = Config.get_csv_path(symbol)
-
-    if is_cache_valid(filepath, expiry):
-        logger.info(f"Using cached data for {symbol}")
-        df = load_from_csv(symbol)
-        if df is not None:
-            return df
-
-    logger.info(f"Fetching fresh data for {symbol}")
-    df = fetch_func(symbol, **kwargs)
-    save_to_csv(df, symbol)
-
-    return df
-
-
 def normalize_prices(df: pd.DataFrame, price_column: str = "close") -> pd.Series:
     """
     Normalize prices to start at 100 for comparison.
@@ -270,17 +217,23 @@ def calculate_correlation_matrix(
         if df.empty or price_column not in df.columns:
             continue
 
-        # Calculate daily returns
         returns = df[price_column].pct_change()
+
+        # Index by calendar date so pandas aligns assets by DATE, not row position.
+        # Without this, assets with different histories (e.g. 2y stocks vs 1y crypto)
+        # get correlated across unrelated dates. Normalize to a tz-naive day key.
+        if "date" in df.columns:
+            day = pd.to_datetime(df["date"], utc=True).dt.tz_localize(None).dt.normalize()
+            returns = pd.Series(returns.values, index=day)
+            returns = returns[~returns.index.duplicated(keep="last")]
+
         returns_dict[symbol] = returns
 
     if not returns_dict:
         return pd.DataFrame()
 
-    # Create DataFrame with all returns
+    # Outer-align on the date index, then keep only days present for all assets.
     returns_df = pd.DataFrame(returns_dict)
-
-    # Drop NaN rows (align dates)
     returns_df = returns_df.dropna()
 
     return returns_df.corr()
@@ -373,7 +326,8 @@ def filter_by_date_range(
     elif date_range == "6 Months":
         min_date = max_date - pd.DateOffset(months=6)
     elif date_range == "Year to Date":
-        min_date = pd.Timestamp(year=max_date.year, month=1, day=1)
+        # Match the column's tz (None when naive) so the comparison below is valid.
+        min_date = pd.Timestamp(year=max_date.year, month=1, day=1, tz=max_date.tz)
     elif date_range == "1 Year":
         min_date = max_date - pd.DateOffset(years=1)
     elif date_range == "2 Years":

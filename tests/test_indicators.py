@@ -2,9 +2,7 @@
 Unit tests for financial indicators calculations.
 """
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from src.indicators import (
     calculate_daily_return,
@@ -25,7 +23,6 @@ class TestDailyReturn:
     def test_basic_daily_return(self):
         """Test basic daily return calculation."""
         prices = pd.Series([100, 102, 98, 105])
-        expected = pd.Series([np.nan, 2.0, -3.92156862745098, 7.142857142857143])
         result = calculate_daily_return(prices)
 
         assert result.isna().sum() == 1  # First value should be NaN
@@ -166,6 +163,21 @@ class TestSummaryStatistics:
         stats = calculate_summary_statistics(df)
         assert stats == {}
 
+    def test_dates_come_from_date_column(self):
+        """Regression (bug 6): start/end dates must read the 'date' column.
+
+        Loaded data uses a RangeIndex with date as a column, so the old
+        prices.index[0] returned the integer '0' instead of a real date.
+        """
+        df = pd.DataFrame({
+            "date": pd.date_range("2024-01-01", periods=5, freq="D"),
+            "close": [100, 101, 102, 103, 104],
+        })
+        stats = calculate_summary_statistics(df)
+
+        assert stats["start_date"] == "2024-01-01"
+        assert stats["end_date"] == "2024-01-05"
+
 
 class TestMovingAverages:
     """Tests for moving average calculations."""
@@ -200,3 +212,19 @@ class TestRSI:
         valid_rsi = result.dropna()
         assert all(valid_rsi >= 0)
         assert all(valid_rsi <= 100)
+
+    def test_rsi_all_gains_is_100(self):
+        """Regression (bug 5): a window with no losses is RSI 100, not 0.
+
+        The old `avg_loss.replace(0, np.inf)` made rs=0 → RSI=0 for an all-gains
+        window, inverting the indicator.
+        """
+        prices = pd.Series(range(1, 20))  # strictly increasing
+        result = calculate_rsi(prices, period=14)
+        assert round(result.iloc[-1], 4) == 100.0
+
+    def test_rsi_all_losses_is_0(self):
+        """Regression (bug 5): a window with no gains is RSI 0."""
+        prices = pd.Series(range(20, 1, -1))  # strictly decreasing
+        result = calculate_rsi(prices, period=14)
+        assert round(result.iloc[-1], 4) == 0.0

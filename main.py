@@ -8,19 +8,12 @@ data retrieval and serves as the application launcher.
 import logging
 from typing import Optional
 
-from src.api import (
-    DataFetchError,
-    fetch_all_market_data,
-    fetch_stock_data,
-    fetch_crypto_data,
-)
-from src.config import Config
+from src.api import fetch_all_market_data
 from src.indicators import add_financial_indicators
 from src.utils import (
     setup_logging,
     clean_data,
     save_to_csv,
-    load_all_data,
 )
 
 

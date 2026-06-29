@@ -61,9 +61,6 @@ financial-market-dashboard/
 │   ├── test_utils.py
 │   └── test_api.py
 │
-├── notebooks/            # Jupyter notebooks for analysis
-├── assets/               # Static assets (images, etc.)
-│
 ├── main.py               # Application entry point
 ├── requirements.txt      # Python dependencies
 ├── .env.example          # Environment variables template
@@ -115,9 +112,6 @@ Edit `.env` to customize settings (optional):
 DEFAULT_STOCKS=PETR4.SA,VALE3.SA,AAPL,MSFT
 DEFAULT_INDEXES=^BVSP,^GSPC,^IXIC,^DJI
 DEFAULT_CRYPTO=bitcoin,ethereum,solana
-
-# Cache Settings
-CACHE_EXPIRY_HOURS=1
 
 # Logging Level
 LOG_LEVEL=INFO
@@ -234,11 +228,11 @@ DEFAULT_STOCKS = ["PETR4.SA", "VALE3.SA", "AAPL", "MSFT", "GOOGL"]
 DEFAULT_CRYPTO = ["bitcoin", "ethereum", "solana", "cardano"]
 ```
 
-### Customizing Cache Duration
+### Caching
 
-```env
-CACHE_EXPIRY_HOURS=24  # Cache valid for 24 hours
-```
+The dashboard caches loaded data in-process via Streamlit's `@st.cache_data`
+(1-hour TTL). Click **🔄 Refresh Data** in the sidebar to clear the cache and
+reload the CSVs (e.g. after running `python main.py` again).
 
 ## 📊 Screenshots
 

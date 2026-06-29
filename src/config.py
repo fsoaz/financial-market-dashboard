@@ -7,7 +7,6 @@ and path management.
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -51,29 +50,6 @@ class Config:
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-
-    # Asset type mappings
-    ASSET_TYPES: dict[str, str] = {
-        "stocks": DEFAULT_STOCKS,
-        "indexes": DEFAULT_INDEXES,
-        "crypto": DEFAULT_CRYPTO,
-    }
-
-    @classmethod
-    def get_asset_type(cls, symbol: str) -> Optional[str]:
-        """
-        Determine the asset type based on the symbol.
-
-        Args:
-            symbol: The asset symbol to check.
-
-        Returns:
-            The asset type ('stocks', 'indexes', 'crypto') or None if not found.
-        """
-        for asset_type, symbols in cls.ASSET_TYPES.items():
-            if symbol in symbols:
-                return asset_type
-        return None
 
     @classmethod
     def ensure_directories(cls) -> None:

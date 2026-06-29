@@ -7,7 +7,6 @@ This module handles all API communications with external data sources:
 """
 
 import logging
-from datetime import datetime, timedelta
 from typing import Optional
 
 import pandas as pd
@@ -211,30 +210,3 @@ def validate_response(data: pd.DataFrame, required_columns: list[str]) -> bool:
         return False
 
     return True
-
-
-def get_current_price(symbol: str, asset_type: str) -> Optional[float]:
-    """
-    Get the current/latest price for an asset.
-
-    Args:
-        symbol: Asset symbol.
-        asset_type: Type of asset ('stocks', 'indexes', 'crypto').
-
-    Returns:
-        Current price or None if unavailable.
-    """
-    try:
-        if asset_type == "crypto":
-            url = f"{Config.COINGECKO_API_URL}/simple/price"
-            params = {"ids": symbol, "vs_currencies": "usd"}
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            return data.get(symbol, {}).get("usd")
-        else:
-            ticker = yf.Ticker(symbol)
-            return ticker.fast_info.get("lastPrice")
-    except Exception as e:
-        logger.error(f"Error getting current price for {symbol}: {e}")
-        return None

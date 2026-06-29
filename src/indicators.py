@@ -9,7 +9,6 @@ This module provides functions for calculating various financial metrics:
 """
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -157,6 +156,17 @@ def calculate_summary_statistics(df: pd.DataFrame, price_column: str = "close") 
 
     daily_returns = calculate_daily_return(prices)
 
+    # Dates live in the 'date' column (rows use a RangeIndex after load/clean).
+    # Align to the rows that survived dropna(); fall back to the index only when
+    # there is no 'date' column (e.g. a datetime-indexed Series).
+    if "date" in df.columns:
+        dates = pd.to_datetime(df.loc[prices.index, "date"])
+        start_date = str(dates.iloc[0].date())
+        end_date = str(dates.iloc[-1].date())
+    else:
+        start_date = str(prices.index[0].date()) if hasattr(prices.index[0], "date") else str(prices.index[0])
+        end_date = str(prices.index[-1].date()) if hasattr(prices.index[-1], "date") else str(prices.index[-1])
+
     return {
         "current_price": float(prices.iloc[-1]),
         "daily_return": float(daily_returns.iloc[-1]) if not daily_returns.empty else 0.0,
@@ -164,8 +174,8 @@ def calculate_summary_statistics(df: pd.DataFrame, price_column: str = "close") 
         "volatility_daily": float(calculate_volatility(daily_returns, annualize=False)),
         "volatility_annual": float(calculate_volatility(daily_returns, annualize=True)),
         "max_drawdown": float(calculate_max_drawdown(prices)),
-        "start_date": str(prices.index[0].date()) if hasattr(prices.index[0], "date") else str(prices.index[0]),
-        "end_date": str(prices.index[-1].date()) if hasattr(prices.index[-1], "date") else str(prices.index[-1]),
+        "start_date": start_date,
+        "end_date": end_date,
     }
 
 
@@ -219,8 +229,12 @@ def calculate_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
     avg_gain = gain.rolling(window=period).mean()
     avg_loss = loss.rolling(window=period).mean()
 
-    rs = avg_gain / avg_loss.replace(0, np.inf)
+    rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
+
+    # No losses in the window → RSI is 100 by definition. Guard explicitly so the
+    # avg_loss == 0 case yields 100 (the old `replace(0, inf)` made rs=0 → RSI=0).
+    rsi[avg_loss == 0] = 100.0
 
     return rsi
 

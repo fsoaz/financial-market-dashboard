@@ -3,7 +3,6 @@ Unit tests for API data processing.
 """
 
 import pandas as pd
-import pytest
 
 from src.api import validate_response
 
