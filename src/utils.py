@@ -7,7 +7,6 @@ file I/O, and other common operations.
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -16,7 +15,7 @@ from src.config import Config
 logger = logging.getLogger(__name__)
 
 
-def setup_logging(level: Optional[str] = None) -> None:
+def setup_logging(level: str | None = None) -> None:
     """
     Configure application logging.
 
@@ -98,12 +97,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     df = df.copy()
-    df.columns = (
-        df.columns.str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace("-", "_")
-    )
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_").str.replace("-", "_")
     return df
 
 
@@ -125,7 +119,7 @@ def save_to_csv(df: pd.DataFrame, symbol: str, processed: bool = False) -> Path:
     return filepath
 
 
-def load_from_csv(symbol: str, processed: bool = False) -> Optional[pd.DataFrame]:
+def load_from_csv(symbol: str, processed: bool = False) -> pd.DataFrame | None:
     """
     Load DataFrame from CSV file.
 
@@ -254,11 +248,11 @@ def format_currency(value: float, currency: str = "USD") -> str:
     symbol = symbols.get(currency, "$")
 
     if abs(value) >= 1e9:
-        return f"{symbol}{value/1e9:.2f}B"
+        return f"{symbol}{value / 1e9:.2f}B"
     elif abs(value) >= 1e6:
-        return f"{symbol}{value/1e6:.2f}M"
+        return f"{symbol}{value / 1e6:.2f}M"
     elif abs(value) >= 1e3:
-        return f"{symbol}{value/1e3:.2f}K"
+        return f"{symbol}{value / 1e3:.2f}K"
     else:
         return f"{symbol}{value:.2f}"
 

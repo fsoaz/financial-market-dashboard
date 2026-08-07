@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Setup (Python 3.12+)
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # lint tooling (ruff)
 
 # Fetch + process market data into data/raw and data/processed
 python main.py
@@ -20,9 +21,17 @@ pytest                                # all
 pytest tests/test_indicators.py -v    # single file
 pytest tests/test_indicators.py::TestDailyReturn::test_basic_daily_return  # single test
 pytest --cov=src --cov-report=html    # coverage
+
+# Lint (config in pyproject.toml: line-length 100, py312 target)
+ruff check .
+ruff format --check .
+
+# Docker (fetches data on startup, then serves the dashboard)
+docker build -t financial-market-dashboard .
+docker run -p 8501:8501 financial-market-dashboard
 ```
 
-There is no linter configured. No pytest config file — discovery uses defaults (`tests/`, `test_*.py`).
+`pytest` config lives in `pyproject.toml` (`[tool.pytest.ini_options]`, `testpaths = ["tests"]`) rather than a separate ini file. CI (`.github/workflows/ci.yml`) runs ruff check, ruff format --check, and pytest with coverage on every push/PR to `main`.
 
 ## Architecture
 
@@ -51,3 +60,7 @@ Module roles:
 
 - `load_from_csv` swallows all exceptions and returns `None`, so a bad/unreadable CSV makes an asset vanish from the dashboard with no visible error. Check logs if an expected asset is missing.
 - The technical-indicator functions (`add_technical_indicators`, `calculate_macd`, `calculate_bollinger_bands`) have no caller yet — public API surface for a documented-but-unwired feature, not dead code.
+
+## Docs
+
+User-facing docs live under `docs/` (Diátaxis: getting-started, `how-to/`, `reference/`, `explanation/`), linked from the README hub. `CONTRIBUTING.md` requires docs to be updated in the same PR as behavior/config/API changes — keep `docs/reference/python-api.md` and `docs/reference/configuration.md` in sync when touching public functions or `Config`/`.env.example`. `CHANGELOG.md` follows Keep a Changelog, versioned against `__version__` in `src/__init__.py`.

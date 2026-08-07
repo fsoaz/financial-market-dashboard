@@ -164,8 +164,16 @@ def calculate_summary_statistics(df: pd.DataFrame, price_column: str = "close") 
         start_date = str(dates.iloc[0].date())
         end_date = str(dates.iloc[-1].date())
     else:
-        start_date = str(prices.index[0].date()) if hasattr(prices.index[0], "date") else str(prices.index[0])
-        end_date = str(prices.index[-1].date()) if hasattr(prices.index[-1], "date") else str(prices.index[-1])
+        start_date = (
+            str(prices.index[0].date())
+            if hasattr(prices.index[0], "date")
+            else str(prices.index[0])
+        )
+        end_date = (
+            str(prices.index[-1].date())
+            if hasattr(prices.index[-1], "date")
+            else str(prices.index[-1])
+        )
 
     return {
         "current_price": float(prices.iloc[-1]),

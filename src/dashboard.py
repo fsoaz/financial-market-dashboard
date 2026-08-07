@@ -8,7 +8,6 @@ interactive dashboard application.
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -23,21 +22,21 @@ from src.indicators import (
     calculate_summary_statistics,
 )
 from src.utils import (
+    calculate_correlation_matrix,
     clean_data,
-    load_all_data,
-    normalize_prices,
+    filter_by_date_range,
     format_currency,
     format_percentage,
-    filter_by_date_range,
     get_date_range_options,
-    calculate_correlation_matrix,
+    load_all_data,
+    normalize_prices,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def create_kpi_card(
-    title: str, value: str, delta: Optional[str] = None, delta_color: str = "normal"
+    title: str, value: str, delta: str | None = None, delta_color: str = "normal"
 ) -> None:
     """
     Display a KPI metric card.
@@ -53,9 +52,7 @@ def create_kpi_card(
         st.metric(label=title, value=value, delta=delta, delta_color=delta_color)
 
 
-def create_price_chart(
-    df: pd.DataFrame, symbol: str, asset_type: str
-) -> go.Figure:
+def create_price_chart(df: pd.DataFrame, symbol: str, asset_type: str) -> go.Figure:
     """
     Create an interactive price chart with candlestick or line.
 
@@ -117,9 +114,7 @@ def create_cumulative_return_chart(data: dict[str, pd.DataFrame]) -> go.Figure:
             continue
 
         cum_return = ((df["close"] - df["close"].iloc[0]) / df["close"].iloc[0]) * 100
-        fig.add_trace(
-            go.Scatter(x=df["date"], y=cum_return, name=symbol, mode="lines")
-        )
+        fig.add_trace(go.Scatter(x=df["date"], y=cum_return, name=symbol, mode="lines"))
 
     fig.update_layout(
         title="Cumulative Returns Comparison",
@@ -431,7 +426,8 @@ def render_price_charts(data: dict[str, pd.DataFrame]) -> None:
             symbols = list(data.keys())
         else:
             symbols = [
-                s for s, df in data.items()
+                s
+                for s, df in data.items()
                 if "asset_type" in df.columns and df["asset_type"].iloc[0] == selected_type
             ]
         selected_symbol = st.selectbox("Asset", symbols)
@@ -491,12 +487,9 @@ def render_financial_indicators(data: dict[str, pd.DataFrame]) -> None:
         return
 
     # Layout
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Cumulative Return",
-        "Drawdown",
-        "Return Distribution",
-        "Volatility"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Cumulative Return", "Drawdown", "Return Distribution", "Volatility"]
+    )
 
     with tab1:
         fig = create_cumulative_return_chart({selected_symbol: df})
@@ -576,12 +569,9 @@ def render_asset_comparison(data: dict[str, pd.DataFrame]) -> None:
         return
 
     # Tabs for different comparison views
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Normalized Prices",
-        "Cumulative Returns",
-        "Volatility",
-        "Correlation"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Normalized Prices", "Cumulative Returns", "Volatility", "Correlation"]
+    )
 
     with tab1:
         fig = create_normalized_price_chart(filtered_data)
@@ -602,10 +592,7 @@ def render_asset_comparison(data: dict[str, pd.DataFrame]) -> None:
             if "close" in df.columns and len(df) > 1:
                 returns = df["close"].pct_change().dropna()
                 annual_vol = returns.std() * (252**0.5) * 100
-                vol_data.append({
-                    "Asset": symbol,
-                    "Annual Volatility (%)": round(annual_vol, 2)
-                })
+                vol_data.append({"Asset": symbol, "Annual Volatility (%)": round(annual_vol, 2)})
         if vol_data:
             st.dataframe(pd.DataFrame(vol_data), hide_index=True)
 
@@ -655,7 +642,7 @@ def render_dashboard() -> None:
         st.markdown("""
         ### About
         Built with Python, Streamlit, and Plotly
-        
+
         **Data Sources:**
         - yfinance (Stocks & Indexes)
         - CoinGecko (Crypto)

@@ -6,21 +6,20 @@ data retrieval and serves as the application launcher.
 """
 
 import logging
-from typing import Optional
 
 from src.api import fetch_all_market_data
 from src.indicators import add_financial_indicators
 from src.utils import (
-    setup_logging,
     clean_data,
     save_to_csv,
+    setup_logging,
 )
 
 
 def update_market_data(
-    stocks: Optional[list[str]] = None,
-    indexes: Optional[list[str]] = None,
-    cryptos: Optional[list[str]] = None,
+    stocks: list[str] | None = None,
+    indexes: list[str] | None = None,
+    cryptos: list[str] | None = None,
     save_processed: bool = True,
 ) -> dict[str, str]:
     """

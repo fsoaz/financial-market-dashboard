@@ -30,9 +30,7 @@ class Config:
     PROCESSED_DIR: Path = BASE_DIR / "data" / "processed"
 
     # API Configuration
-    COINGECKO_API_URL: str = os.getenv(
-        "COINGECKO_API_URL", "https://api.coingecko.com/api/v3"
-    )
+    COINGECKO_API_URL: str = os.getenv("COINGECKO_API_URL", "https://api.coingecko.com/api/v3")
 
     # Default Assets
     DEFAULT_STOCKS: list[str] = [

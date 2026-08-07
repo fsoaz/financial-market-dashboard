@@ -5,15 +5,15 @@ Unit tests for financial indicators calculations.
 import pandas as pd
 
 from src.indicators import (
-    calculate_daily_return,
     calculate_cumulative_return,
-    calculate_volatility,
+    calculate_daily_return,
     calculate_drawdown,
-    calculate_max_drawdown,
-    calculate_summary_statistics,
-    calculate_sma,
     calculate_ema,
+    calculate_max_drawdown,
     calculate_rsi,
+    calculate_sma,
+    calculate_summary_statistics,
+    calculate_volatility,
 )
 
 
@@ -139,9 +139,11 @@ class TestSummaryStatistics:
 
     def test_basic_summary(self):
         """Test basic summary statistics."""
-        df = pd.DataFrame({
-            "close": [100, 110, 105, 115, 120],
-        })
+        df = pd.DataFrame(
+            {
+                "close": [100, 110, 105, 115, 120],
+            }
+        )
         stats = calculate_summary_statistics(df)
 
         assert "current_price" in stats
@@ -169,10 +171,12 @@ class TestSummaryStatistics:
         Loaded data uses a RangeIndex with date as a column, so the old
         prices.index[0] returned the integer '0' instead of a real date.
         """
-        df = pd.DataFrame({
-            "date": pd.date_range("2024-01-01", periods=5, freq="D"),
-            "close": [100, 101, 102, 103, 104],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=5, freq="D"),
+                "close": [100, 101, 102, 103, 104],
+            }
+        )
         stats = calculate_summary_statistics(df)
 
         assert stats["start_date"] == "2024-01-01"

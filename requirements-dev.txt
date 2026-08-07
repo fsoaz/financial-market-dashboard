@@ -1,0 +1,2 @@
+# Development-only tooling (not required to run the app)
+ruff>=0.6.0

@@ -7,7 +7,6 @@ This module handles all API communications with external data sources:
 """
 
 import logging
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -51,23 +50,23 @@ def fetch_stock_data(symbol: str, period: str = "2y") -> pd.DataFrame:
 
         # Standardize column names - handle different yfinance versions
         df.columns = df.columns.str.strip().str.lower()
-        
+
         # Rename columns to standard names
         rename_map = {}
         for col in df.columns:
-            if 'adj' in col and 'close' in col:
-                rename_map[col] = 'adj_close'
-            elif col == 'date':
-                rename_map[col] = 'date'
-        
+            if "adj" in col and "close" in col:
+                rename_map[col] = "adj_close"
+            elif col == "date":
+                rename_map[col] = "date"
+
         df = df.rename(columns=rename_map)
-        
+
         # Ensure adj_close exists, use close if not available
-        if 'adj_close' not in df.columns and 'close' in df.columns:
-            df['adj_close'] = df['close']
+        if "adj_close" not in df.columns and "close" in df.columns:
+            df["adj_close"] = df["close"]
 
         # Ensure date column is datetime
-        if 'date' in df.columns:
+        if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"])
 
         # Add symbol column
@@ -77,15 +76,15 @@ def fetch_stock_data(symbol: str, period: str = "2y") -> pd.DataFrame:
         # Select and order columns
         required_cols = ["date", "symbol", "asset_type", "open", "high", "low", "close", "volume"]
         available_cols = [c for c in required_cols if c in df.columns]
-        if 'adj_close' in df.columns:
-            available_cols.append('adj_close')
+        if "adj_close" in df.columns:
+            available_cols.append("adj_close")
 
         logger.info(f"Successfully fetched {len(df)} records for {symbol}")
         return df[available_cols]
 
     except Exception as e:
         logger.error(f"Error fetching stock data for {symbol}: {str(e)}")
-        raise DataFetchError(f"Failed to fetch data for {symbol}: {str(e)}")
+        raise DataFetchError(f"Failed to fetch data for {symbol}: {str(e)}") from e
 
 
 def fetch_crypto_data(coin_id: str, days: int = 365) -> pd.DataFrame:
@@ -129,7 +128,7 @@ def fetch_crypto_data(coin_id: str, days: int = 365) -> pd.DataFrame:
         df["asset_type"] = "crypto"
         df["open"] = df["close"]  # Approximate
         df["high"] = df["close"]  # Will be updated if OHLC available
-        df["low"] = df["close"]   # Will be updated if OHLC available
+        df["low"] = df["close"]  # Will be updated if OHLC available
         df["volume"] = 0  # Not available in this endpoint
 
         logger.info(f"Successfully fetched {len(df)} records for {coin_id}")
@@ -137,16 +136,16 @@ def fetch_crypto_data(coin_id: str, days: int = 365) -> pd.DataFrame:
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error fetching crypto data for {coin_id}: {str(e)}")
-        raise DataFetchError(f"Failed to fetch crypto data for {coin_id}: {str(e)}")
+        raise DataFetchError(f"Failed to fetch crypto data for {coin_id}: {str(e)}") from e
     except Exception as e:
         logger.error(f"Error fetching crypto data for {coin_id}: {str(e)}")
-        raise DataFetchError(f"Failed to fetch data for {coin_id}: {str(e)}")
+        raise DataFetchError(f"Failed to fetch data for {coin_id}: {str(e)}") from e
 
 
 def fetch_all_market_data(
-    stocks: Optional[list[str]] = None,
-    indexes: Optional[list[str]] = None,
-    cryptos: Optional[list[str]] = None,
+    stocks: list[str] | None = None,
+    indexes: list[str] | None = None,
+    cryptos: list[str] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Fetch market data for multiple assets across different types.
