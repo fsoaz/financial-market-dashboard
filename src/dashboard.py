@@ -363,7 +363,7 @@ def render_market_overview(data: dict[str, pd.DataFrame]) -> None:
             label="Daily Return",
             value=format_percentage(daily_ret),
             delta=format_percentage(daily_ret),
-            delta_color="inverse" if daily_ret < 0 else "normal",
+            delta_color="normal",
         )
 
     with col3:
@@ -385,7 +385,7 @@ def render_market_overview(data: dict[str, pd.DataFrame]) -> None:
             label="Max Drawdown",
             value=format_percentage(max_dd),
             delta=format_percentage(max_dd),
-            delta_color="inverse",
+            delta_color="normal",
         )
 
     # Additional info

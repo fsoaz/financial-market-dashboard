@@ -162,7 +162,7 @@ def load_all_data(processed: bool = False) -> dict[str, pd.DataFrame]:
     if not directory.exists():
         return data
 
-    for filepath in directory.glob("*.csv"):
+    for filepath in sorted(directory.glob("*.csv"), key=lambda path: path.stem.casefold()):
         symbol = filepath.stem
         df = load_from_csv(symbol, processed=processed)
         if df is not None:

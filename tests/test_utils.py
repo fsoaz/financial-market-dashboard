@@ -11,6 +11,7 @@ from src.utils import (
     filter_by_date_range,
     format_currency,
     format_percentage,
+    load_all_data,
     normalize_prices,
     standardize_columns,
 )
@@ -234,6 +235,25 @@ class TestConvertDatesMixedTimezone:
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
         assert str(result["date"].dt.tz) == "UTC"
         assert len(result) == 2
+
+
+class TestLoadAllData:
+    """Tests for loading the available asset files."""
+
+    def test_returns_assets_in_deterministic_order(self, tmp_path, monkeypatch):
+        """Asset order should not depend on filesystem directory-entry order."""
+        from src.config import Config
+
+        for symbol in ["bitcoin", "AAPL", "^BVSP"]:
+            pd.DataFrame({"date": ["2024-01-01"], "close": [100]}).to_csv(
+                tmp_path / f"{symbol}.csv", index=False
+            )
+
+        monkeypatch.setattr(Config, "PROCESSED_DIR", tmp_path)
+
+        result = load_all_data(processed=True)
+
+        assert list(result) == ["^BVSP", "AAPL", "bitcoin"]
 
 
 class TestCorrelationMatrix:
