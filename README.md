@@ -6,6 +6,8 @@
 
 A Streamlit web application for retrieving, analyzing, and visualizing financial market data from yfinance (stocks and indexes) and CoinGecko (cryptocurrencies). Data is stored locally as CSV files and served through interactive Plotly charts.
 
+![Financial Market Dashboard Preview](docs/assets/dashboard_hero.png)
+
 ## Features
 
 - Multi-asset support: stocks, market indexes, and cryptocurrencies
@@ -16,10 +18,33 @@ A Streamlit web application for retrieving, analyzing, and visualizing financial
 
 ### Dashboard pages
 
-1. **Market Overview** — KPI cards for price, returns, volatility, and max drawdown
-2. **Price Charts** — Candlestick and line charts with asset and date filters
-3. **Financial Indicators** — Return distribution, drawdown, and volatility views
-4. **Asset Comparison** — Normalized prices and correlation heatmap
+| Page | Description | Preview |
+|------|-------------|---------|
+| **Price Charts** | Interactive candlestick and line charts with date range selectors and range slider | [View](docs/assets/price_charts.png) |
+| **Market Overview** | Real-time KPI cards for price, daily/cumulative returns, volatility, and max drawdown | [View](docs/assets/market_overview.png) |
+| **Financial Indicators** | Deep-dive analytics with cumulative returns, drawdown curves, and return distributions | [View](docs/assets/financial_indicators.png) |
+| **Asset Comparison** | Side-by-side benchmarking with normalized prices (Base 100) and correlation heatmaps | [View](docs/assets/asset_comparison.png) |
+
+<details>
+<summary><b>📸 Click to expand screenshots of each dashboard view</b></summary>
+<br>
+
+#### 1. Price Charts (Candlestick & Line)
+![Price Charts](docs/assets/price_charts.png)
+
+#### 2. Market Overview (KPI Cards)
+![Market Overview](docs/assets/market_overview.png)
+
+#### 3. Financial Indicators (Cumulative Return, Drawdown & Return Distribution)
+![Financial Indicators](docs/assets/financial_indicators.png)
+![Drawdown Analysis](docs/assets/drawdown_analysis.png)
+![Return Distribution](docs/assets/return_distribution.png)
+
+#### 4. Asset Comparison & Correlation Heatmap
+![Asset Comparison](docs/assets/asset_comparison.png)
+![Correlation Heatmap](docs/assets/correlation_heatmap.png)
+
+</details>
 
 ## Prerequisites
 
@@ -82,6 +107,7 @@ financial-market-dashboard/
 │   ├── raw/                 # Downloaded OHLCV data
 │   └── processed/           # Data with financial indicators
 ├── docs/
+│   ├── assets/              # Dashboard preview and screenshots
 │   ├── getting-started.md
 │   ├── how-to/
 │   ├── reference/
