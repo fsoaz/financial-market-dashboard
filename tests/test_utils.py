@@ -129,10 +129,12 @@ class TestNormalizePrices:
 
     def test_preserves_history_after_normalization(self):
         """Normalization should keep the original ordering and relative trend."""
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
-            "close": [100.0, 110.0, 121.0],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+                "close": [100.0, 110.0, 121.0],
+            }
+        )
 
         result = normalize_prices(df)
 
