@@ -3,6 +3,7 @@ Unit tests for utility functions.
 """
 
 import pandas as pd
+import pytest
 
 from src.utils import (
     calculate_correlation_matrix,
@@ -125,6 +126,20 @@ class TestNormalizePrices:
         df = pd.DataFrame({"close": [0, 100, 200]})
         result = normalize_prices(df)
         assert result.empty
+
+    def test_preserves_history_after_normalization(self):
+        """Normalization should keep the original ordering and relative trend."""
+        df = pd.DataFrame({
+            "date": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+            "close": [100.0, 110.0, 121.0],
+        })
+
+        result = normalize_prices(df)
+
+        assert list(result.index) == list(df.index)
+        assert result.iloc[0] == pytest.approx(100.0)
+        assert result.iloc[1] == pytest.approx(110.0)
+        assert result.iloc[2] == pytest.approx(121.0)
 
 
 class TestFormatCurrency:
