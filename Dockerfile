@@ -9,11 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY . .
 
-# .env.example ships no secrets (yfinance/CoinGecko free tier, unauthenticated);
-# copy it as the default .env so Config's os.getenv() calls have sane defaults
-# even if the user doesn't mount their own .env.
-RUN cp .env.example .env
-
 # Run as non-root
 RUN useradd --create-home --uid 1000 appuser \
     && chown -R appuser:appuser /app
