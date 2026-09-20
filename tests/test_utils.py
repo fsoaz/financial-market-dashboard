@@ -287,21 +287,31 @@ class TestLoadAllData:
 
         assert list(result) == ["^BVSP", "AAPL", "bitcoin"]
 
-    def test_loads_csv_from_s3_backend(self, monkeypatch):
-        from src.config import Config
+    @staticmethod
+    def _fake_boto3(pages, seen_paginate=None):
+        """Build a minimal boto3 stand-in whose paginator yields the given pages."""
 
         class Body:
+            def __init__(self, key):
+                self.key = key
+
             def read(self):
-                return b"date,close\n2024-01-01,100\n"
+                symbol = self.key.rsplit("/", 1)[-1][:-4]
+                return f"date,symbol,close\n2024-01-01,{symbol},100\n".encode()
+
+        class Paginator:
+            def paginate(self, **kwargs):
+                if seen_paginate is not None:
+                    seen_paginate.append(kwargs)
+                return iter(pages)
 
         class S3:
-            def list_objects_v2(self, **kwargs):
-                assert kwargs["Bucket"] == "test-bucket"
-                return {"Contents": [{"Key": "market-data/processed/AAPL.csv"}]}
+            def get_paginator(self, operation):
+                assert operation == "list_objects_v2"
+                return Paginator()
 
             def get_object(self, **kwargs):
-                assert kwargs["Key"] == "market-data/processed/AAPL.csv"
-                return {"Body": Body()}
+                return {"Body": Body(kwargs["Key"])}
 
         class Boto3:
             @staticmethod
@@ -309,15 +319,54 @@ class TestLoadAllData:
                 assert name == "s3"
                 return S3()
 
-        monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+        return Boto3
+
+    @staticmethod
+    def _use_s3_backend(monkeypatch, boto3_stub):
+        from src.config import Config
+
+        monkeypatch.setitem(__import__("sys").modules, "boto3", boto3_stub)
         monkeypatch.setattr(Config, "DATA_BACKEND", "s3")
         monkeypatch.setattr(Config, "S3_BUCKET", "test-bucket")
         monkeypatch.setattr(Config, "S3_PREFIX", "market-data")
+
+    def test_loads_csv_from_s3_backend(self, monkeypatch):
+        seen = []
+        pages = [{"Contents": [{"Key": "market-data/processed/AAPL.csv"}]}]
+        self._use_s3_backend(monkeypatch, self._fake_boto3(pages, seen))
 
         result = load_all_data(processed=True)
 
         assert list(result) == ["AAPL"]
         assert result["AAPL"]["close"].tolist() == [100]
+        # The prefix must be the folder, not a key ending in ".csv", or the
+        # listing matches nothing and every asset silently disappears.
+        assert seen == [{"Bucket": "test-bucket", "Prefix": "market-data/processed/"}]
+
+    def test_reads_every_page_of_a_truncated_listing(self, monkeypatch):
+        """Assets past the first 1000-key page must not be dropped."""
+        pages = [
+            {"Contents": [{"Key": "market-data/processed/MSFT.csv"}]},
+            {"Contents": [{"Key": "market-data/processed/bitcoin.csv"}]},
+            {"Contents": [{"Key": "market-data/processed/AAPL.csv"}]},
+        ]
+        self._use_s3_backend(monkeypatch, self._fake_boto3(pages))
+
+        result = load_all_data(processed=True)
+
+        # Sorted across page boundaries, not merely within each page.
+        assert list(result) == ["AAPL", "bitcoin", "MSFT"]
+
+    def test_ignores_non_csv_and_empty_pages(self, monkeypatch):
+        """A page with no Contents key, and non-CSV objects, are both skipped."""
+        pages = [
+            {},
+            {"Contents": [{"Key": "market-data/processed/README.txt"}]},
+            {"Contents": [{"Key": "market-data/processed/AAPL.csv"}]},
+        ]
+        self._use_s3_backend(monkeypatch, self._fake_boto3(pages))
+
+        assert list(load_all_data(processed=True)) == ["AAPL"]
 
 
 class TestCorrelationMatrix:

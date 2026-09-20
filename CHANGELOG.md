@@ -14,6 +14,15 @@ aligned with `__version__` in `src/__init__.py`.
   IAM login, safe diagnostics, HTTP 400 troubleshooting, and credential precedence
 - Terraform dependency lock file and ignored local state/configuration artifacts
 
+### Fixed
+
+- `load_all_data` now lists S3 objects under the correct folder prefix. It previously
+  built the prefix from `Config.s3_key("")`, producing a key like
+  `market-data/processed/.csv` that matched no object, so a dashboard running with
+  `DATA_BACKEND=s3` loaded no assets at all
+- `load_all_data` now paginates the S3 listing, so buckets holding more than 1000
+  objects no longer lose every asset past the first page
+
 ### Security
 
 - Restricted the GitHub Actions OIDC trust to the protected `production` environment

@@ -193,10 +193,23 @@ def load_all_data(processed: bool = False) -> dict[str, pd.DataFrame]:
     if Config.DATA_BACKEND == "s3":
         import boto3
 
-        prefix = Config.s3_key("", processed=processed).rstrip("/")
-        response = boto3.client("s3").list_objects_v2(Bucket=Config.S3_BUCKET, Prefix=prefix)
+        # Must be the folder prefix, not s3_key("") -- that yields ".../raw/.csv",
+        # which matches no object and silently returns an empty dashboard.
+        prefix = f"{Config.s3_folder(processed=processed)}/"
+        # Paginate: a single list_objects_v2 response is capped at 1000 keys, so a
+        # plain call would silently drop every asset past the first page.
+        pages = (
+            boto3.client("s3")
+            .get_paginator("list_objects_v2")
+            .paginate(Bucket=Config.S3_BUCKET, Prefix=prefix)
+        )
         keys = sorted(
-            (item["Key"] for item in response.get("Contents", []) if item["Key"].endswith(".csv")),
+            (
+                item["Key"]
+                for page in pages
+                for item in page.get("Contents", [])
+                if item["Key"].endswith(".csv")
+            ),
             key=str.casefold,
         )
         for key in keys:

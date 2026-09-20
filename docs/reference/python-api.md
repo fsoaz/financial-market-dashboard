@@ -172,7 +172,7 @@ Returns `{}` if the frame is empty or has fewer than two valid prices.
 | `standardize_columns(df)` | Lowercase, underscore column names |
 | `save_to_csv(df, symbol, processed=False)` | Write under `data/raw/` or `data/processed/` |
 | `load_from_csv(symbol, processed=False)` | Load one CSV or return `None` |
-| `load_all_data(processed=False)` | Load all `*.csv` in the chosen directory |
+| `load_all_data(processed=False)` | Load every `*.csv` in the chosen directory, or all pages of the S3 prefix |
 | `normalize_prices(df, price_column="close")` | Scale series to start at 100 |
 | `calculate_correlation_matrix(data, price_column="close")` | Correlate daily returns aligned by calendar date |
 | `format_currency(value, currency="USD")` | Display helper (`$`, `R$`, etc.) |
@@ -194,10 +194,23 @@ normalized = normalize_prices(data["AAPL"])
 Class attributes (see [Configuration](configuration.md)):
 
 - Paths: `BASE_DIR`, `DATA_DIR`, `PROCESSED_DIR`
+- Storage: `DATA_BACKEND` (`local` or `s3`), `S3_BUCKET`, `S3_PREFIX`
 - Assets: `DEFAULT_STOCKS`, `DEFAULT_INDEXES`, `DEFAULT_CRYPTO`
 - APIs: `COINGECKO_API_URL`
 - `CACHE_EXPIRY_HOURS`, `LOG_LEVEL`
-- Methods: `ensure_directories()`, `get_csv_path(symbol, processed=False)`
+
+Methods:
+
+| Method | Returns |
+| --- | --- |
+| `ensure_directories()` | Creates the local `data/raw` and `data/processed` directories. |
+| `get_csv_path(symbol, processed=False)` | Local `Path` for a symbol's CSV. |
+| `validate()` | Raises `ValueError` for an unknown `DATA_BACKEND`, or for `s3` without `S3_BUCKET`. |
+| `s3_folder(processed=False)` | Object key prefix for the folder, e.g. `market-data/processed` (no trailing slash). Use this to **list** objects. |
+| `s3_key(symbol, processed=False)` | Object key for one asset, e.g. `market-data/processed/AAPL.csv`. |
+
+The S3 key layout mirrors the local `raw/`, `processed/` directory layout, so the same
+files can be produced locally and synced to the bucket unchanged.
 
 Directories are created on import of `src.config`.
 

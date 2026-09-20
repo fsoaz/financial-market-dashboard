@@ -85,11 +85,16 @@ class Config:
             raise ValueError("S3_BUCKET is required when DATA_BACKEND=s3")
 
     @classmethod
-    def s3_key(cls, symbol: str, processed: bool = False) -> str:
-        """Return the object key while preserving the local raw/processed layout."""
+    def s3_folder(cls, processed: bool = False) -> str:
+        """Return the object key prefix for the raw/processed folder, without a trailing slash."""
         folder = "processed" if processed else "raw"
         parts = [part.strip("/") for part in (cls.S3_PREFIX, folder) if part.strip("/")]
-        return "/".join([*parts, f"{symbol}.csv"])
+        return "/".join(parts)
+
+    @classmethod
+    def s3_key(cls, symbol: str, processed: bool = False) -> str:
+        """Return the object key while preserving the local raw/processed layout."""
+        return f"{cls.s3_folder(processed=processed)}/{symbol}.csv"
 
 
 # Initialize directories on module import
