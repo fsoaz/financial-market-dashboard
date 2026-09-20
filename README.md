@@ -112,6 +112,8 @@ financial-market-dashboard/
 │   ├── how-to/
 │   ├── reference/
 │   └── explanation/
+├── infra/
+│   └── terraform/           # AWS infrastructure and GitHub OIDC role
 ├── src/
 │   ├── api.py               # yfinance and CoinGecko clients
 │   ├── indicators.py        # Financial and technical indicators
@@ -138,6 +140,7 @@ financial-market-dashboard/
 | [Getting started](docs/getting-started.md) | Zero to working dashboard |
 | [Add assets](docs/how-to/add-assets.md) | Configure stocks, indexes, and crypto |
 | [Schedule data updates](docs/how-to/schedule-data-updates.md) | Cron and Task Scheduler |
+| [Deploy to AWS](docs/how-to/deploy-to-aws.md) | Authenticate safely and run Terraform |
 | [Troubleshooting](docs/how-to/troubleshooting.md) | Common failure modes |
 | [Configuration](docs/reference/configuration.md) | Environment variables |
 | [Python API](docs/reference/python-api.md) | Module and function reference |
@@ -154,7 +157,7 @@ financial-market-dashboard/
 | Config | python-dotenv |
 | Testing | pytest |
 | Linting | ruff |
-| DevOps | Docker, GitHub Actions |
+| DevOps | Docker, GitHub Actions, Terraform, AWS |
 
 ## Running tests
 

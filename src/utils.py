@@ -6,6 +6,7 @@ file I/O, and other common operations.
 """
 
 import logging
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -113,9 +114,24 @@ def save_to_csv(df: pd.DataFrame, symbol: str, processed: bool = False) -> Path:
     Returns:
         Path to saved file.
     """
+    Config.validate()
+    if Config.DATA_BACKEND == "s3":
+        import boto3
+
+        body = df.to_csv(index=False).encode("utf-8")
+        boto3.client("s3").put_object(
+            Bucket=Config.S3_BUCKET,
+            Key=Config.s3_key(symbol, processed=processed),
+            Body=body,
+            ContentType="text/csv",
+        )
+        location = f"s3://{Config.S3_BUCKET}/{Config.s3_key(symbol, processed)}"
+        logger.info("Saved data to %s", location)
+        return Path(location)
+
     filepath = Config.get_csv_path(symbol, processed=processed)
     df.to_csv(filepath, index=False)
-    logger.info(f"Saved data to {filepath}")
+    logger.info("Saved data to %s", filepath)
     return filepath
 
 
@@ -130,6 +146,21 @@ def load_from_csv(symbol: str, processed: bool = False) -> pd.DataFrame | None:
     Returns:
         DataFrame or None if file doesn't exist.
     """
+    Config.validate()
+    if Config.DATA_BACKEND == "s3":
+        import boto3
+
+        try:
+            response = boto3.client("s3").get_object(
+                Bucket=Config.S3_BUCKET,
+                Key=Config.s3_key(symbol, processed=processed),
+            )
+            df = pd.read_csv(BytesIO(response["Body"].read()))
+            return convert_dates(df)
+        except Exception as e:
+            logger.debug("S3 object not found or unreadable for %s: %s", symbol, e)
+            return None
+
     filepath = Config.get_csv_path(symbol, processed=processed)
 
     if not filepath.exists():
@@ -156,8 +187,26 @@ def load_all_data(processed: bool = False) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping symbol to DataFrame.
     """
-    directory = Config.PROCESSED_DIR if processed else Config.DATA_DIR
     data: dict[str, pd.DataFrame] = {}
+
+    Config.validate()
+    if Config.DATA_BACKEND == "s3":
+        import boto3
+
+        prefix = Config.s3_key("", processed=processed).rstrip("/")
+        response = boto3.client("s3").list_objects_v2(Bucket=Config.S3_BUCKET, Prefix=prefix)
+        keys = sorted(
+            (item["Key"] for item in response.get("Contents", []) if item["Key"].endswith(".csv")),
+            key=str.casefold,
+        )
+        for key in keys:
+            symbol = key.rsplit("/", 1)[-1][:-4]
+            df = load_from_csv(symbol, processed=processed)
+            if df is not None:
+                data[symbol] = df
+        return data
+
+    directory = Config.PROCESSED_DIR if processed else Config.DATA_DIR
 
     if not directory.exists():
         return data

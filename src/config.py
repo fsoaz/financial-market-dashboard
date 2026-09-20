@@ -29,6 +29,12 @@ class Config:
     DATA_DIR: Path = BASE_DIR / "data" / "raw"
     PROCESSED_DIR: Path = BASE_DIR / "data" / "processed"
 
+    # Data storage.  Local remains the default for development; production uses
+    # the private S3 bucket provisioned by Terraform.
+    DATA_BACKEND: str = os.getenv("DATA_BACKEND", "local").lower()
+    S3_BUCKET: str = os.getenv("S3_BUCKET", "")
+    S3_PREFIX: str = os.getenv("S3_PREFIX", "")
+
     # API Configuration
     COINGECKO_API_URL: str = os.getenv("COINGECKO_API_URL", "https://api.coingecko.com/api/v3")
 
@@ -69,6 +75,21 @@ class Config:
         """
         base_dir = cls.PROCESSED_DIR if processed else cls.DATA_DIR
         return base_dir / f"{symbol}.csv"
+
+    @classmethod
+    def validate(cls) -> None:
+        """Validate settings that are required by the selected backend."""
+        if cls.DATA_BACKEND not in {"local", "s3"}:
+            raise ValueError("DATA_BACKEND must be either 'local' or 's3'")
+        if cls.DATA_BACKEND == "s3" and not cls.S3_BUCKET:
+            raise ValueError("S3_BUCKET is required when DATA_BACKEND=s3")
+
+    @classmethod
+    def s3_key(cls, symbol: str, processed: bool = False) -> str:
+        """Return the object key while preserving the local raw/processed layout."""
+        folder = "processed" if processed else "raw"
+        parts = [part.strip("/") for part in (cls.S3_PREFIX, folder) if part.strip("/")]
+        return "/".join([*parts, f"{symbol}.csv"])
 
 
 # Initialize directories on module import

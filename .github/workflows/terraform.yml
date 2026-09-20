@@ -1,0 +1,41 @@
+name: Terraform infrastructure
+
+on:
+  pull_request:
+    paths: ["infra/terraform/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Configure remote state
+        run: |
+          printf 'bucket = "%s"\nkey = "financial-market-dashboard/terraform.tfstate"\nregion = "%s"\nencrypt = true\nuse_lockfile = true\n' "$TF_STATE_BUCKET" "$AWS_REGION" > backend.hcl
+        env:
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      - run: terraform init -backend-config=backend.hcl
+      - run: terraform fmt -check
+      - run: terraform validate
+      - name: Plan
+        run: terraform plan -out=tfplan
+      - name: Apply
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve tfplan

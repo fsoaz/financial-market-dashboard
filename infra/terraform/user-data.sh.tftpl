@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+aws_region="${aws_region}"
+bucket="${bucket}"
+image_uri="${image_uri}"
+aws ecr get-login-password --region "$aws_region" | docker login --username AWS --password-stdin "$(echo "$image_uri" | cut -d/ -f1)"
+docker pull "$image_uri"
+docker rm -f financial-market-dashboard || true
+docker run -d --name financial-market-dashboard --restart always \
+  -p 8501:8501 \
+  -e DATA_BACKEND=s3 \
+  -e S3_BUCKET="$bucket" \
+  -e S3_PREFIX="${s3_prefix}" \
+  "$image_uri"

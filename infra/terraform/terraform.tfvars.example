@@ -1,0 +1,6 @@
+aws_region       = "us-east-1"
+project_name     = "financial-market-dashboard"
+s3_prefix        = "market-data"
+github_repository = "OWNER/financial-market-dashboard"
+github_environment = "production"
+terraform_state_bucket = "replace-with-the-same-bucket-as-backend-hcl"

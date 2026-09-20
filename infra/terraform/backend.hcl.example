@@ -1,0 +1,7 @@
+# Create and secure this bucket once, before terraform init. Keep this generated
+# backend.hcl file local; it is ignored by Git.
+bucket       = "replace-with-a-dedicated-state-bucket"
+key          = "financial-market-dashboard/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true

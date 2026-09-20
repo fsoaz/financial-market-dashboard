@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -39,9 +40,39 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run tests with coverage
-        run: pytest --cov=src --cov-report=term-missing --cov-report=xml
+        run: pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-report=json --junitxml=test-results.xml
       - name: Coverage summary
         if: always()
         run: |
           echo "## Coverage report" >> "$GITHUB_STEP_SUMMARY"
           python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY" || python -m coverage report >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload quality gate inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-inputs
+          path: |
+            coverage.json
+            test-results.xml
+
+  quality-gate:
+    name: AI quality gate
+    needs: [lint, test]
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download quality gate inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: quality-gate-inputs
+      - name: Run quality gate
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+          QUALITY_GATE_MIN_COVERAGE: ${{ vars.QUALITY_GATE_MIN_COVERAGE }}
+        run: python scripts/quality_gate.py --coverage-file coverage.json --junit-file test-results.xml

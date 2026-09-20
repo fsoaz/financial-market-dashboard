@@ -272,6 +272,38 @@ class TestLoadAllData:
 
         assert list(result) == ["^BVSP", "AAPL", "bitcoin"]
 
+    def test_loads_csv_from_s3_backend(self, monkeypatch):
+        from src.config import Config
+
+        class Body:
+            def read(self):
+                return b"date,close\n2024-01-01,100\n"
+
+        class S3:
+            def list_objects_v2(self, **kwargs):
+                assert kwargs["Bucket"] == "test-bucket"
+                return {"Contents": [{"Key": "market-data/processed/AAPL.csv"}]}
+
+            def get_object(self, **kwargs):
+                assert kwargs["Key"] == "market-data/processed/AAPL.csv"
+                return {"Body": Body()}
+
+        class Boto3:
+            @staticmethod
+            def client(name):
+                assert name == "s3"
+                return S3()
+
+        monkeypatch.setitem(__import__("sys").modules, "boto3", Boto3)
+        monkeypatch.setattr(Config, "DATA_BACKEND", "s3")
+        monkeypatch.setattr(Config, "S3_BUCKET", "test-bucket")
+        monkeypatch.setattr(Config, "S3_PREFIX", "market-data")
+
+        result = load_all_data(processed=True)
+
+        assert list(result) == ["AAPL"]
+        assert result["AAPL"]["close"].tolist() == [100]
+
 
 class TestCorrelationMatrix:
     """Regression tests for correlation alignment."""

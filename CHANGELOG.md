@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 aligned with `__version__` in `src/__init__.py`.
 
+## [Unreleased]
+
+### Added
+
+- AWS CLI authentication and Terraform deployment runbook, including IAM Identity Center,
+  IAM login, safe diagnostics, HTTP 400 troubleshooting, and credential precedence
+- Terraform dependency lock file and ignored local state/configuration artifacts
+
+### Security
+
+- Restricted the GitHub Actions OIDC trust to the protected `production` environment
+- Replaced wildcard deployment actions with an explicit, resource-scoped policy and
+  prevented the CI role from modifying its own IAM permissions
+
 ## [1.0.0] - 2026-08-07
 
 ### Added
