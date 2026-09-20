@@ -13,8 +13,35 @@ aligned with `__version__` in `src/__init__.py`.
 - AWS CLI authentication and Terraform deployment runbook, including IAM Identity Center,
   IAM login, safe diagnostics, HTTP 400 troubleshooting, and credential precedence
 - Terraform dependency lock file and ignored local state/configuration artifacts
+- `docs/reference/ci-cd.md` documenting the four GitHub Actions workflows, the AI quality
+  gate, and every secret and repository variable the pipeline consumes
+- `docs/README.md` as an index for the Diátaxis tree
+- Configuration reference for the storage backend (`DATA_BACKEND`, `S3_BUCKET`,
+  `S3_PREFIX`), including the `Config.validate()` failure modes and the S3 key layout
+- Architecture sections covering both storage backends and the deployed AWS topology,
+  including the plain-HTTP load balancer and the read-only instance role
+- Deployment guide sections covering what the stack creates, the Terraform outputs to
+  wire into repository secrets, how to populate a fresh stack, and how to roll out a new
+  image with an instance refresh
+
+### Changed
+
+- The *Update market data* workflow takes its S3 prefix from the `S3_PREFIX` repository
+  variable (default `market-data`) instead of hardcoding it, so it can no longer drift
+  from the `s3_prefix` Terraform variable unnoticed
+- `CONTRIBUTING.md` is now the canonical contributor workflow; `AGENTS.md` links to it
+  instead of restating it
 
 ### Fixed
+
+- README no longer claims the Docker container fetches market data on startup. The image
+  excludes `data/` and the entrypoint only starts Streamlit, so `docker run` without a
+  populated volume produced an empty dashboard. The section now documents the fetch step
+  and the required mount
+- `CONTRIBUTING.md` pre-PR checks now include `ruff format --check .` and coverage, which
+  CI enforces but the checklist omitted
+- Documented that `S3_PREFIX` defaults to empty in `src/config.py` while every deployed
+  path assumes `market-data`
 
 - `load_all_data` now lists S3 objects under the correct folder prefix. It previously
   built the prefix from `Config.s3_key("")`, producing a key like

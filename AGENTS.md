@@ -1,10 +1,14 @@
 # Repository Guidelines
 
+[`CONTRIBUTING.md`](CONTRIBUTING.md) is canonical for contributor workflow: branch naming,
+the checks to run before a PR, and the docs-with-code rule. This file adds the repository
+map and the execution rules that apply to automated coding agents.
+
 ## Project Structure & Module Organization
 
 This Python 3.12+ application separates market-data ingestion from its Streamlit dashboard. `main.py` fetches and processes data; `src/dashboard.py` reads stored CSVs and renders Plotly charts. In `src/`, `api.py` handles providers, `indicators.py` implements calculations, `utils.py` handles storage and cleaning, and `config.py` centralizes settings.
 
-Tests live in `tests/`. Tracked sample CSVs live in `data/raw/` and `data/processed/`; refreshing data can modify them. Documentation and screenshots are under `docs/` and `docs/assets/`. AWS infrastructure lives in `infra/terraform/`, CI workflows in `.github/workflows/`, and the quality gate in `scripts/quality_gate.py`.
+Tests live in `tests/`. Tracked sample CSVs live in `data/raw/` and `data/processed/`; refreshing data can modify them. Documentation and screenshots are under `docs/` and `docs/assets/`. AWS infrastructure lives in `infra/terraform/`, CI workflows in `.github/workflows/`, and the quality gate in `scripts/quality_gate.py` (documented in `docs/reference/ci-cd.md`).
 
 ## Build, Test, and Development Commands
 
@@ -28,11 +32,11 @@ Use pytest and pytest-cov. Name files `test_*.py` and functions `test_*`; group 
 
 ## Commit & Pull Request Guidelines
 
-Recent commits use prefixes such as `feat:` and `test:`; follow that convention with concise, descriptive subjects. Branch from `main` using names such as `fix/empty-dashboard` or `feat/add-rsi-overlay`. Explain the problem, changes, and verification in each PR. Update relevant documentation in the same PR and `CHANGELOG.md` for user-visible changes.
+Follow [`CONTRIBUTING.md`](CONTRIBUTING.md) for branch naming, pre-PR checks, and the PR checklist. In addition: commits use prefixes such as `feat:` and `test:` with concise, descriptive subjects; explain the problem, changes, and verification in each PR; update relevant documentation in the same PR and `CHANGELOG.md` for user-visible changes.
 
 ## Security & Configuration
 
-Copy `.env.example` to `.env` for local configuration; never commit credentials. When changing environment variables, update `.env.example` and `docs/reference/configuration.md` together. Local CSV storage is the default; S3 storage requires `DATA_BACKEND=s3` and `S3_BUCKET`.
+Copy `.env.example` to `.env` for local configuration; never commit credentials. When changing environment variables, update `.env.example` and `docs/reference/configuration.md` together. Local CSV storage is the default; S3 storage requires `DATA_BACKEND=s3` and `S3_BUCKET`, and `S3_PREFIX` must match the `s3_prefix` Terraform variable.
 
 ## Execution Rules
 

@@ -11,6 +11,9 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  # Must match the s3_prefix Terraform variable, which the running container
+  # receives as S3_PREFIX. A mismatch silently empties the dashboard.
+  S3_PREFIX: ${{ vars.S3_PREFIX || 'market-data' }}
 
 jobs:
   update:
@@ -37,5 +40,5 @@ jobs:
         env:
           DATA_BUCKET: ${{ secrets.DATA_BUCKET }}
         run: |
-          aws s3 sync data/raw "s3://$DATA_BUCKET/market-data/raw" --delete
-          aws s3 sync data/processed "s3://$DATA_BUCKET/market-data/processed" --delete
+          aws s3 sync data/raw "s3://$DATA_BUCKET/$S3_PREFIX/raw" --delete
+          aws s3 sync data/processed "s3://$DATA_BUCKET/$S3_PREFIX/processed" --delete

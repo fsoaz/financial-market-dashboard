@@ -2,6 +2,9 @@
 
 Thanks for improving the Financial Market Dashboard. This guide covers how to propose changes safely and keep documentation accurate.
 
+This file is the canonical source for contributor workflow. `AGENTS.md` adds rules specific
+to automated coding agents and defers to this file for everything else.
+
 ## Development setup
 
 1. Fork and clone the repository.
@@ -22,12 +25,17 @@ Use short, descriptive branch names:
 1. Create a branch from `main`.
 2. Implement the change.
 3. Update documentation in the **same** pull request when behavior, config, or public APIs change. Do not defer docs to a follow-up PR.
-4. Run lint and tests before opening a PR:
+4. Run the same checks CI runs, before opening a PR:
 
    ```bash
    ruff check .
-   pytest
+   ruff format --check .   # use `ruff format .` to fix
+   pytest --cov=src
    ```
+
+   CI fails the build on any of the three. Coverage of `src/` must stay at or above the
+   quality gate threshold (70% by default) — see
+   [CI and quality gate](docs/reference/ci-cd.md).
 
 5. Open a pull request with a clear description of *why* the change exists and how you verified it.
 
@@ -52,7 +60,8 @@ When you change environment variables, update both `.env.example` and `docs/refe
 
 ## Pull request checklist
 
-- [ ] `ruff check .` and `pytest` pass locally
+- [ ] `ruff check .`, `ruff format --check .`, and `pytest` pass locally
+- [ ] Coverage of `src/` is at or above the quality gate threshold
 - [ ] Docs updated if user-facing or developer-facing behavior changed
 - [ ] No `.env` or credentials committed
 - [ ] CHANGELOG updated for user-visible changes (see [CHANGELOG.md](CHANGELOG.md))

@@ -24,9 +24,9 @@ flowchart LR
     Ind[src.indicators]
     Util[src.utils CSV I/O]
   end
-  subgraph storage [Local files]
-    Raw[data/raw CSV]
-    Proc[data/processed CSV]
+  subgraph storage ["Storage (local disk or S3)"]
+    Raw["raw CSV"]
+    Proc["processed CSV"]
   end
   subgraph ui [Streamlit UI]
     Dash[src.dashboard]
@@ -50,6 +50,9 @@ flowchart LR
 4. **`add_financial_indicators`** adds returns and drawdown; processed frames go to `data/processed/`.
 5. **`streamlit run src/dashboard.py`** loads processed CSVs through `load_all_data(processed=True)`, caches them for one hour, and routes sidebar pages to render functions.
 
+Steps 3–5 go through `src/utils.py`, which resolves `DATA_BACKEND` on every call. The
+pipeline is identical for both backends; only the location of the CSVs changes.
+
 The UI does not call yfinance or CoinGecko on each page view. Refresh market data with the CLI (or a scheduled job), then click **Refresh Data** in the sidebar.
 
 ## Why CSV instead of a database
@@ -59,6 +62,48 @@ The UI does not call yfinance or CoinGecko on each page view. Refresh market dat
 - Fits the roadmap stage: database integration remains a future option
 
 Trade-off: concurrent writers, large history, and multi-user hosting are out of scope for the current design.
+
+## Storage backends
+
+`Config.DATA_BACKEND` selects where `src/utils.py` reads and writes. The S3 layout mirrors
+the local directory layout key for key, so the same CSVs work in either place.
+
+| | `local` (default) | `s3` |
+|---|---|---|
+| Location | `data/raw/`, `data/processed/` | `s3://$S3_BUCKET/$S3_PREFIX/{raw,processed}/` |
+| Written by | `python main.py` on the same machine | the `data-update` workflow, which fetches locally and syncs |
+| Read by | the Streamlit process | the Streamlit container, via the EC2 instance role |
+| Credentials | none | default boto3 chain |
+
+`load_all_data` lists the folder prefix and paginates, because a single
+`list_objects_v2` response stops at 1000 keys. Both details exist because getting them
+wrong returns an empty dashboard rather than an error — see
+[Configuration](../reference/configuration.md#storage-backend).
+
+## Deployed topology
+
+```mermaid
+flowchart LR
+  Dev["GitHub Actions"] -->|"push image"| ECR["ECR repository"]
+  Dev -->|"sync CSVs"| S3["S3 data bucket (private)"]
+  User["Browser"] -->|"HTTP :80"| ALB["Application Load Balancer"]
+  ALB -->|":8501"| ASG["EC2 Auto Scaling group (2-4)"]
+  ASG -->|"pull at boot"| ECR
+  ASG -->|"read only"| S3
+```
+
+Boundaries worth knowing:
+
+- The load balancer listens on **plain HTTP, port 80**, open to `0.0.0.0/0`. There is no
+  TLS listener and no authentication in front of the dashboard.
+- Instances accept traffic on 8501 only from the load balancer's security group.
+- The instance role grants `s3:GetObject` and `s3:ListBucket` on the data bucket and image
+  pulls from ECR. The application running there cannot write market data.
+- Writes to the bucket come from GitHub Actions through an OIDC-assumed role, not from the
+  application.
+
+All of this is defined in `infra/terraform/`. See
+[Deploy to AWS](../how-to/deploy-to-aws.md).
 
 ## Caching
 
@@ -76,7 +121,7 @@ See [Configuration](../reference/configuration.md).
 | `main.py` | Orchestrate fetch → clean → indicators → save |
 | `src/api.py` | External HTTP/Yahoo access and `DataFetchError` |
 | `src/indicators.py` | Returns, volatility, drawdown, optional technicals |
-| `src/utils.py` | Logging, cleaning, CSV paths, correlation, formatting |
+| `src/utils.py` | Logging, cleaning, backend-aware CSV I/O, correlation, formatting |
 | `src/config.py` | Env-backed settings and directory layout |
 | `src/dashboard.py` | Streamlit pages and Plotly charts |
 
@@ -88,6 +133,8 @@ See [Configuration](../reference/configuration.md).
 
 ## Related
 
+- [Deploy to AWS](../how-to/deploy-to-aws.md)
+- [CI and quality gate](../reference/ci-cd.md)
 - [Getting started](../getting-started.md)
 - [Schedule data updates](../how-to/schedule-data-updates.md)
 - [Python API](../reference/python-api.md)

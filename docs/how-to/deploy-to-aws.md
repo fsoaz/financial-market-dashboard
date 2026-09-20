@@ -16,6 +16,28 @@ The AWS-managed `SignInLocalDevelopmentAccess` policy only allows an IAM user to
 temporary CLI credentials. It does **not** grant access to S3, ECR, EC2, Elastic Load
 Balancing, Auto Scaling, IAM, or the Terraform state bucket.
 
+## What this stack creates
+
+`infra/terraform/` provisions, in the default VPC of `aws_region`:
+
+| Resource | Notes |
+|----------|-------|
+| ECR repository | Named after `project_name`, scan on push |
+| S3 data bucket | Private, versioned, AES256-encrypted, all public access blocked |
+| Launch template + Auto Scaling group | Amazon Linux 2023, `instance_type` (default `t3.micro`), 2–4 instances |
+| Application Load Balancer | Internet-facing, **HTTP on port 80**, health check `/_stcore/health` |
+| IAM instance role | ECR pull, plus `s3:GetObject` and `s3:ListBucket` on the data bucket |
+| GitHub OIDC provider and deployment role | Only when `github_repository` is set |
+
+Instance user data runs the container with `DATA_BACKEND=s3`, `S3_BUCKET`, and `S3_PREFIX`,
+so the dashboard reads market data from the bucket and never writes to it.
+
+> **The dashboard is served over plain HTTP with no authentication.** Anyone with the load
+> balancer's DNS name can reach it. Add TLS and access control before putting anything
+> non-public behind it.
+
+See [Architecture](../explanation/architecture.md#deployed-topology) for the diagram.
+
 ## 1. Inspect credential precedence safely
 
 The repository uses `financial-market-dashboard` as the example profile and `us-east-1`
@@ -157,6 +179,65 @@ an administrator must apply changes to those bootstrap resources. This prevents 
 compromised workflow from granting itself additional IAM permissions. For the same reason,
 destruction is deliberately not exposed by the GitHub workflow; an authorized
 administrator must review and run `terraform destroy` locally.
+
+## 5. After the first apply
+
+Read the stack's outputs:
+
+```bash
+terraform -chdir=infra/terraform output
+```
+
+| Output | Use |
+|--------|-----|
+| `dashboard_url` | Public HTTP URL of the load balancer |
+| `ecr_repository_url` | Target for the image publish workflow |
+| `data_bucket` | Value for the `DATA_BUCKET` repository secret |
+| `github_deploy_role_arn` | Value for the `AWS_DEPLOY_ROLE_ARN` repository secret |
+
+Then configure the repository so CI can take over:
+
+1. Set the `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET`, and `DATA_BUCKET` secrets.
+2. Protect the `production` environment with required reviewers and restricted branches.
+3. Keep the `S3_PREFIX` repository variable equal to the `s3_prefix` Terraform variable
+   (both default to `market-data`).
+
+Full list in [CI and quality gate](../reference/ci-cd.md#secrets-and-variables).
+
+## 6. Publish an image and populate data
+
+A fresh stack has an empty ECR repository and an empty bucket, so instances have nothing
+to run and nothing to show. Both are filled by workflows:
+
+- **Image** — merge to `main`. A successful CI run triggers *Build and publish image*,
+  which pushes the commit SHA and `latest` tags.
+- **Market data** — run the *Update market data* workflow manually, or wait for its
+  weekday schedule. It fetches CSVs and syncs them under `$S3_PREFIX/raw` and
+  `$S3_PREFIX/processed`.
+
+Confirm the dashboard is serving:
+
+```bash
+curl -I "$(terraform -chdir=infra/terraform output -raw dashboard_url)"
+```
+
+An HTTP 200 means the load balancer has at least one healthy instance. Empty dropdowns in
+the browser with a healthy target group mean the bucket is empty or the prefixes disagree.
+
+## Update the running dashboard
+
+Instances pull the image only in user data, at boot. Pushing a new `latest` tag does not
+change the launch template, so the Auto Scaling group keeps running the old image until
+its instances are replaced. Roll it out with an instance refresh:
+
+```bash
+aws autoscaling start-instance-refresh \
+  --auto-scaling-group-name financial-market-dashboard-asg
+```
+
+The group is already configured for a rolling refresh that keeps at least half the
+capacity healthy. Market-data changes need no refresh — the container re-reads the bucket
+when its one-hour Streamlit cache expires or the process restarts.
 
 ## HTTP 400 during browser authorization
 

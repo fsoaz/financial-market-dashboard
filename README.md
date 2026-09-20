@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fsoaz/financial-market-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/fsoaz/financial-market-dashboard/actions/workflows/ci.yml)
 
-A Streamlit web application for retrieving, analyzing, and visualizing financial market data from yfinance (stocks and indexes) and CoinGecko (cryptocurrencies). Data is stored locally as CSV files and served through interactive Plotly charts.
+A Streamlit web application for retrieving, analyzing, and visualizing financial market data from yfinance (stocks and indexes) and CoinGecko (cryptocurrencies). Data is stored as CSV files — on local disk by default, or in a private S3 bucket when deployed — and served through interactive Plotly charts.
 
 ![Financial Market Dashboard Preview](docs/assets/dashboard_hero.png)
 
@@ -50,6 +50,8 @@ A Streamlit web application for retrieving, analyzing, and visualizing financial
 
 - Python 3.12 or higher
 - pip
+- Network access to Yahoo Finance and CoinGecko
+- Docker, only for [Running with Docker](#running-with-docker)
 
 ## Installation
 
@@ -86,23 +88,41 @@ For scheduled updates, see [Schedule data updates](docs/how-to/schedule-data-upd
 
 ## Running with Docker
 
-Build the image and run it — the container fetches market data on startup, so the dashboard is populated automatically:
+The image ships the application only. `data/` is excluded by `.dockerignore`, and
+`docker-entrypoint.sh` starts Streamlit without fetching data, so the container needs a
+data source. Fetch into a host directory, then mount it:
 
 ```bash
 docker build -t financial-market-dashboard .
-docker run -p 8501:8501 financial-market-dashboard
+
+# Fetch market data into ./data (repeat whenever you want fresher data)
+docker run --rm -v "$(pwd)/data:/app/data" \
+  --entrypoint python financial-market-dashboard main.py
+
+docker run -p 8501:8501 -v "$(pwd)/data:/app/data" financial-market-dashboard
 ```
 
-Open `http://localhost:8501`. First start takes 30-60 seconds while data is fetched. To persist fetched data across restarts:
+Open `http://localhost:8501`.
 
-```bash
-docker run -p 8501:8501 -v $(pwd)/data:/app/data financial-market-dashboard
-```
+Without the mount the dashboard starts with empty dropdowns. See
+[Troubleshooting](docs/how-to/troubleshooting.md#1-dashboard-shows-no-assets).
+
+The container runs as UID 1000 (`Dockerfile`). If your host user has a different UID, make
+`data/` writable by UID 1000 before the fetch step, or run `python main.py` on the host
+instead.
+
+The container can also read from S3 instead of a mounted directory by setting
+`DATA_BACKEND=s3` and `S3_BUCKET`, provided it has AWS credentials. That is how the
+deployed stack runs it — the EC2 instance role supplies the credentials. See
+[Configuration](docs/reference/configuration.md#storage-backend) and
+[Deploy to AWS](docs/how-to/deploy-to-aws.md).
 
 ## Project structure
 
 ```
 financial-market-dashboard/
+├── .github/
+│   └── workflows/           # CI, image publish, data update, Terraform
 ├── data/
 │   ├── raw/                 # Downloaded OHLCV data
 │   └── processed/           # Data with financial indicators
@@ -114,6 +134,8 @@ financial-market-dashboard/
 │   └── explanation/
 ├── infra/
 │   └── terraform/           # AWS infrastructure and GitHub OIDC role
+├── scripts/
+│   └── quality_gate.py      # CI coverage and AI quality gate
 ├── src/
 │   ├── api.py               # yfinance and CoinGecko clients
 │   ├── indicators.py        # Financial and technical indicators
@@ -143,8 +165,11 @@ financial-market-dashboard/
 | [Deploy to AWS](docs/how-to/deploy-to-aws.md) | Authenticate safely and run Terraform |
 | [Troubleshooting](docs/how-to/troubleshooting.md) | Common failure modes |
 | [Configuration](docs/reference/configuration.md) | Environment variables |
+| [CI and quality gate](docs/reference/ci-cd.md) | Workflows, secrets, coverage threshold |
 | [Python API](docs/reference/python-api.md) | Module and function reference |
 | [Architecture](docs/explanation/architecture.md) | Data flow and design choices |
+
+All pages are indexed in [docs/README.md](docs/README.md).
 
 ## Technologies
 
