@@ -49,6 +49,21 @@ class TestCleanData:
         result = clean_data(df)
         assert result.empty
 
+    def test_deduplicate_date_and_symbol_keeping_latest_observation(self):
+        """Duplicate date/symbol pairs should keep the last observation."""
+        df = pd.DataFrame(
+            {
+                "date": ["2024-01-01", "2024-01-01", "2024-01-02"],
+                "symbol": ["AAPL", "AAPL", "AAPL"],
+                "close": [100.0, 101.0, 105.0],
+            }
+        )
+
+        result = clean_data(df)
+
+        assert len(result) == 2
+        assert result.iloc[0]["close"] == pytest.approx(101.0)
+
 
 class TestConvertDates:
     """Tests for date conversion function."""
