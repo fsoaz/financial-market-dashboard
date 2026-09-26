@@ -1,0 +1,82 @@
+name: Agente de IA que altera código
+on:
+workflow_dispatch:
+inputs:
+missao:
+description: "O que o agente deve fazer"
+type: choice
+options: [corrigir_bug, aumentar_cobertura]
+default: corrigir_bug
+# O agente precisa escrever num branch, abrir PR e abrir issue
+permissions:
+contents: write
+pull-requests: write
+issues: write
+jobs:
+agente:
+runs-on: ubuntu-latest
+steps:
+- name: Clonar repositório
+uses: actions/checkout@v4
+# ADAPTE: prepare a linguagem e instale as dependências do seu projeto,
+# incluindo a ferramenta de testes e de cobertura
+# (ex.: actions/setup-python + pip install pytest pytest-cov)
+# Cada missão diz: o que alcançar, qual arquivo a IA pode mexer,
+# o que ela só pode ler e qual comando prova que deu certo
+- name: Definir a missão
+id: missao
+env:
+MISSAO: ${{ inputs.missao }}
+run: |
+if [ "$MISSAO" = "corrigir_bug" ]; then
+{
+echo "objetivo=Corrigir o código para que os testes passem, sem mudar o que os testes
+esperam."
+echo "alvo=<ARQUIVO_DE_CODIGO>"
+echo "contexto=<ARQUIVO_DE_TESTE>"
+echo "verificacao=<COMANDO_DE_TESTE>"
+} >> "$GITHUB_OUTPUT"
+else
+{
+echo "objetivo=Escrever testes automatizados com asserts reais para aumentar a cobertura do
+código."
+echo "alvo=<NOVO_ARQUIVO_DE_TESTE>"
+echo "contexto=<ARQUIVO_DE_CODIGO>"
+echo "verificacao=<COMANDO_DE_TESTE_COM_COBERTURA_MINIMA>"
+} >> "$GITHUB_OUTPUT"
+fi
+- name: Agente trabalha (perceber, decidir, agir, verificar)
+id: agente
+env:
+GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+OBJETIVO: ${{ steps.missao.outputs.objetivo }}
+ARQUIVO_ALVO: ${{ steps.missao.outputs.alvo }}
+ARQUIVOS_CONTEXTO: ${{ steps.missao.outputs.contexto }}
+COMANDO_VERIFICACAO: ${{ steps.missao.outputs.verificacao }}
+run: bash scripts/agente_codigo.sh
+# Entrega: o agente NUNCA faz merge. Ele abre um PR para um humano revisar.
+- name: Abrir pull request para revisão humana
+if: steps.agente.outputs.resultado == 'alterado'
+env:
+GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ALVO: ${{ steps.missao.outputs.alvo }}
+MISSAO: ${{ inputs.missao }}
+BASE: ${{ github.ref_name }}
+run: |
+RAMO="agente-ia/${MISSAO}-${GITHUB_RUN_ID}"
+git config user.name "github-actions[bot]"
+git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+git switch -c "$RAMO"
+git add -- "$ALVO" # só o arquivo permitido entra no commit
+git commit -m "agente-ia: ${MISSAO}"
+git push origin "$RAMO"
+gh pr create --base "$BASE" --head "$RAMO" \
+--title "🤖 Agente de IA: ${MISSAO}" --body-file pr_body.md
+- name: Abrir issue se o agente não conseguiu
+if: steps.agente.outputs.resultado == 'falhou'
+env:
+GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+MISSAO: ${{ inputs.missao }}
+run: |
+gh issue create --title "🤖 Agente de IA não conseguiu: ${MISSAO}" \
+--body-file issue_body.md 
