@@ -53,6 +53,43 @@ def test_no_change_when_verification_passes(
     assert not (code_agent.ROOT / "pr_body.md").exists()
 
 
+def test_failed_verification_sends_file_context_and_error_to_groq(
+    agent_environment: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    agent_environment.write_text("cálculo incorreto\n")
+    (code_agent.ROOT / "src/context.py").write_text("referência do indicador\n")
+    monkeypatch.setenv("ARQUIVOS_CONTEXTO", "src/context.py")
+    monkeypatch.setenv(
+        "COMANDO_VERIFICACAO", "test -f src/context.py && echo 'falha proposital' >&2; exit 1"
+    )
+    monkeypatch.setenv("MAX_TENTATIVAS", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_MODEL", "test-model")
+    requests: list[tuple[str, str, str, str, str]] = []
+
+    def capture_request(api_key: str, model: str, endpoint: str, system: str, data: str) -> str:
+        requests.append((api_key, model, endpoint, system, data))
+        return "resposta inválida"
+
+    monkeypatch.setattr(code_agent, "request_groq", capture_request)
+
+    assert code_agent.main() == 0
+    assert len(requests) == 1
+    api_key, model, endpoint, system, data = requests[0]
+    assert (api_key, model, endpoint) == (
+        "test-key",
+        "test-model",
+        code_agent.DEFAULT_ENDPOINT,
+    )
+    assert "Objetivo: Corrigir cálculo" in system
+    assert "Você só pode alterar o arquivo src/indicator.py" in system
+    assert "=== src/indicator.py (você pode alterar) ===\ncálculo incorreto" in data
+    assert "=== src/context.py (somente leitura) ===\nreferência do indicador" in data
+    assert "=== saída da verificação que falhou ===\nfalha proposital" in data
+    assert agent_environment.read_text() == "cálculo incorreto\n"
+    assert (code_agent.ROOT / "output").read_text() == "resultado=falhou\n"
+
+
 def test_successful_repair(agent_environment: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     agent_environment.write_text("errado\n")
     calls = []
