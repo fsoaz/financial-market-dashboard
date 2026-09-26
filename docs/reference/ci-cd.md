@@ -49,6 +49,37 @@ the block to the Python HTTP client; a blocked `curl` request needs investigatio
 > `APROVADO` means approved and `BLOQUEADO` means blocked. The rest of the project is in
 > English.
 
+## Standalone code agent
+
+`scripts/code_agent.py` is a separate, manual one-file repair tool. It is not called by a
+GitHub Actions workflow. Run it from the repository root with Python 3.12:
+
+```bash
+export GROQ_API_KEY=...  # use a local secret, never commit it
+export OBJETIVO="Corrigir o cálculo do indicador"
+export ARQUIVO_ALVO="src/indicators.py"
+export COMANDO_VERIFICACAO="pytest tests/test_indicators.py"
+python scripts/code_agent.py
+```
+
+The tool runs the verification command from the repository root. If it already passes,
+it makes no change. Otherwise it asks Groq for the complete replacement file, applies
+one proposed change at a time, and reruns verification. It edits only `ARQUIVO_ALVO`;
+review its output before using the change. It refuses paths outside the repository,
+`.github/`, `scripts/`, `.git/`, and secret or credential filenames. It also rejects
+new dangerous commands, files over 12,000 bytes, and replacements that remove more
+than half the original lines.
+
+Optional settings are `ARQUIVOS_CONTEXTO` (space-separated read-only paths),
+`MAX_TENTATIVAS` (default `3`), `GROQ_MODEL` (default `openai/gpt-oss-20b`),
+and `API_URL` (default Groq chat completions endpoint). The older `MODELO` and
+`GROQCLOUD_API_KEY` names still work when the repository-standard names are unset.
+The agent appends `resultado=nada_a_fazer`, `resultado=alterado`, or `resultado=falhou`
+to `GITHUB_OUTPUT` when set, and an attempt table to `GITHUB_STEP_SUMMARY` when set.
+On success it writes `pr_body.md`; after all attempts fail it restores the original
+target, writes `issue_body.md`, and exits successfully so the report can be consumed.
+Invalid configuration or a protected target exits with an error.
+
 ### Configuration
 
 | Name | Kind | Default | Effect |
