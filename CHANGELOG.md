@@ -34,6 +34,8 @@ aligned with `__version__` in `src/__init__.py`.
 
 ### Fixed
 
+- The Groq quality gate now identifies its HTTP client to address Cloudflare error 1010
+  seen with Python's default `urllib` user agent
 - README no longer claims the Docker container fetches market data on startup. The image
   excludes `data/` and the entrypoint only starts Streamlit, so `docker run` without a
   populated volume produced an empty dashboard. The section now documents the fetch step

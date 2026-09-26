@@ -106,6 +106,26 @@ def test_request_groq_http_timeout_and_invalid_json(monkeypatch):
         request_groq("secret", "prompt")
 
 
+def test_request_groq_sends_user_agent(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"choices": [{"message": {"content": "APROVADO"}}]}'
+
+    def urlopen(request, timeout):
+        assert request.get_header("User-agent") == "financial-market-dashboard/1.0"
+        assert request.get_header("Authorization") == "Bearer secret"
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    assert request_groq("secret", "prompt") == "APROVADO"
+
+
 def test_summary_does_not_include_secret(tmp_path):
     summary = tmp_path / "summary.md"
     result = evaluate(80, 70, None, 2, {})

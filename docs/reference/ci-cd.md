@@ -40,6 +40,11 @@ python scripts/quality_gate.py --coverage-file coverage.json --junit-file test-r
 The script exits `0` only when the decision is `APROVADO`; anything else exits `1` and
 fails the job. It also writes a short summary to `$GITHUB_STEP_SUMMARY`.
 
+The Groq request sends a `financial-market-dashboard/1.0` user agent. If a local run
+returns HTTP 403 with Cloudflare error 1010, compare it with an authenticated request to
+`https://api.groq.com/openai/v1/models` using `curl`. A successful `curl` request isolates
+the block to the Python HTTP client; a blocked `curl` request needs investigation with Groq.
+
 > **Language note.** The gate's prompt, log lines, and decision tokens are in Portuguese:
 > `APROVADO` means approved and `BLOQUEADO` means blocked. The rest of the project is in
 > English.
